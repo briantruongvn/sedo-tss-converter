@@ -20,7 +20,8 @@ from typing import Union, Optional
 import argparse
 import sys
 import re
-from validation_utils import validate_pipeline_input, ValidationError, ErrorHandler
+from validation_utils import ValidationError, ErrorHandler, handle_validation_error
+from pipeline_validator import validate_before_pipeline
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -55,8 +56,20 @@ class ExcelUnmerger:
         """
         logger.info("📋 Excel Cell Unmerging - Standalone")
         
-        # Comprehensive input validation
-        input_path = validate_pipeline_input(input_file, "Step 1")
+        # Pre-flight validation to prevent pipeline failures
+        logger.info("🔍 Running pre-flight validation...")
+        if not validate_before_pipeline(input_file, verbose=True):
+            logger.error("💥 Pre-flight validation failed - pipeline cannot continue")
+            raise ValidationError(
+                "Input validation failed - please fix the issues above and try again",
+                error_code="PREFLIGHT_VALIDATION_FAILED",
+                severity=ValidationError.CRITICAL,
+                category=ValidationError.FILE_ERROR,
+                step="Step 1"
+            )
+        
+        # Use validated path (pre-flight validation already checked file)
+        input_path = Path(input_file)
         
         # Auto-generate output file if not provided
         if output_file is None:
@@ -230,8 +243,10 @@ def main():
             print(f"\n✅ Success!")
             print(f"📁 Output: {result}")
             
+    except ValidationError as e:
+        handle_validation_error(e, logger)
     except Exception as e:
-        logger.error(f"❌ Error: {e}")
+        logger.error(f"❌ Unexpected Error: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

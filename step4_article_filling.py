@@ -25,7 +25,8 @@ import argparse
 import sys
 import re
 import shutil
-from validation_utils import validate_pipeline_input, ValidationError, ErrorHandler, HeaderDetector
+from validation_utils import validate_pipeline_input, ValidationError, ErrorHandler, HeaderDetector, handle_validation_error
+from pipeline_validator import validate_before_pipeline
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -64,8 +65,20 @@ class ArticleFiller:
         """
         logger.info("📋 Step 4: Article Information Filling - Content Preparation")
         
-        # Comprehensive input validation
-        input_path = validate_pipeline_input(input_file, "Step 4")
+        # Pre-flight validation to prevent pipeline failures
+        logger.info("🔍 Running pre-flight validation...")
+        if not validate_before_pipeline(input_file, verbose=True):
+            logger.error("💥 Pre-flight validation failed - pipeline cannot continue")
+            raise ValidationError(
+                "Input validation failed - please fix the issues above and try again",
+                error_code="PREFLIGHT_VALIDATION_FAILED",
+                severity=ValidationError.CRITICAL,
+                category=ValidationError.FILE_ERROR,
+                step="Step 4"
+            )
+        
+        # Use validated paths (pre-flight validation already checked main input file)
+        input_path = Path(input_file)
         step3_path = validate_pipeline_input(step3_file, "Step 4 (Step 3 template)")
         
         # Auto-generate output file if not provided
@@ -370,8 +383,10 @@ def main():
             print(f"\n✅ Success!")
             print(f"📁 Output: {result}")
             
+    except ValidationError as e:
+        handle_validation_error(e, logger)
     except Exception as e:
-        logger.error(f"❌ Error: {e}")
+        logger.error(f"❌ Unexpected Error: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

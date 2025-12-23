@@ -15,8 +15,50 @@ from difflib import SequenceMatcher
 logger = logging.getLogger(__name__)
 
 class ValidationError(Exception):
-    """Custom exception for validation errors with actionable messages"""
-    pass
+    """Enhanced validation error with error codes, severity, and actionable messages"""
+    
+    # Error severity levels
+    CRITICAL = "CRITICAL"  # Pipeline cannot continue
+    ERROR = "ERROR"       # Step will fail but pipeline might continue
+    WARNING = "WARNING"   # Issue detected but pipeline can continue
+    
+    # Error categories
+    FILE_ERROR = "FILE_ERROR"
+    STRUCTURE_ERROR = "STRUCTURE_ERROR" 
+    HEADER_ERROR = "HEADER_ERROR"
+    DATA_ERROR = "DATA_ERROR"
+    DEPENDENCY_ERROR = "DEPENDENCY_ERROR"
+    
+    def __init__(self, message: str, error_code: str = None, severity: str = CRITICAL, 
+                 category: str = None, suggestions: List[str] = None, step: str = None):
+        super().__init__(message)
+        self.error_code = error_code or "VALIDATION_ERROR"
+        self.severity = severity
+        self.category = category or "UNKNOWN"
+        self.suggestions = suggestions or []
+        self.step = step
+        self.timestamp = __import__('datetime').datetime.now()
+    
+    def __str__(self):
+        return f"[{self.severity}] {self.args[0]}"
+    
+    def get_formatted_error(self) -> str:
+        """Get formatted error message for user display"""
+        lines = [
+            f"🚨 {self.severity}: {self.args[0]}",
+            f"📍 Error Code: {self.error_code}",
+            f"📂 Category: {self.category}"
+        ]
+        
+        if self.step:
+            lines.append(f"🔧 Step: {self.step}")
+        
+        if self.suggestions:
+            lines.append("💡 Suggestions:")
+            for suggestion in self.suggestions:
+                lines.append(f"   • {suggestion}")
+        
+        return "\n".join(lines)
 
 class FileValidator:
     """
@@ -398,3 +440,17 @@ def validate_pipeline_input(file_path: Union[str, Path], step_name: str) -> Path
             f"{str(e)}\n"
             f"Please check your input file and try again."
         )
+
+def handle_validation_error(e: ValidationError, logger=None) -> None:
+    """
+    Standard error handler for ValidationError exceptions
+    
+    Args:
+        e: ValidationError exception
+        logger: Optional logger for additional error logging
+    """
+    import sys
+    if logger:
+        logger.error("💥 Validation Error:")
+    print(e.get_formatted_error())
+    sys.exit(1)

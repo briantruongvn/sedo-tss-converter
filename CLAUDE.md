@@ -5,6 +5,21 @@ Chuyển đổi file Excel compliance test summary từ format Input (phức t�
 
 **Key principle: ADAPTIVE, not HARDCODED!** 🔑
 
+## ✅ Trước khi bắt đầu
+
+### Kiểm tra file input
+```bash
+# Bước 1: Kiểm tra file trước khi chạy pipeline
+python validate_my_file.py "data/input/your-file.xlsx"
+
+# Bước 2: Chỉ tiếp tục nếu validation PASSED
+```
+
+**📋 Tài liệu hỗ trợ:**
+- `INPUT_REQUIREMENTS.md` - Yêu cầu chi tiết file input
+- `QUICK_CHECKLIST.md` - Checklist nhanh 5 phút  
+- `EMAIL_TEMPLATE.md` - Template gửi cho users
+
 ## 🚀 Sử dụng nhanh
 
 ### Xử lý 1 file
