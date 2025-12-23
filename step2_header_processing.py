@@ -22,6 +22,7 @@ from typing import Union, Optional, Tuple
 import argparse
 import sys
 import re
+from validation_utils import validate_pipeline_input, ValidationError, ErrorHandler, HeaderDetector
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -56,9 +57,8 @@ class HeaderProcessor:
         """
         logger.info("📋 Step 2: Header Processing with 3-Case Logic")
         
-        input_path = Path(input_file)
-        if not input_path.exists():
-            raise FileNotFoundError(f"Input file not found: {input_path}")
+        # Comprehensive input validation
+        input_path = validate_pipeline_input(input_file, "Step 2")
         
         # Auto-generate output file if not provided
         if output_file is None:
@@ -74,19 +74,26 @@ class HeaderProcessor:
         logger.info(f"Input: {input_path}")
         logger.info(f"Output: {output_file}")
         
-        # Load workbook
+        # Load workbook with enhanced error handling
         try:
             wb = openpyxl.load_workbook(str(input_path))
         except Exception as e:
-            logger.error(f"Failed to load workbook: {e}")
-            raise
+            error_msg = ErrorHandler.handle_file_error(e, input_path, "loading workbook")
+            logger.error(error_msg)
+            raise ValidationError(error_msg)
         
         ws = wb.active
         
-        # Step 1: Find header row with "General Type/Sub-Type in Connect" (n)
-        header_row = self._find_header_row(ws)
-        if header_row is None:
-            raise ValueError("Could not find 'General Type/Sub-Type in Connect' header row in the worksheet")
+        # Step 1: Find header row with enhanced detection
+        header_result = HeaderDetector.find_general_type_header(ws)
+        if header_result is None:
+            searched_patterns = ["General Type/Sub-Type in Connect", "General Type of Material in Connect"]
+            error_msg = ErrorHandler.handle_header_not_found("General Type header", searched_patterns, 50)
+            logger.error(error_msg)
+            raise ValidationError(error_msg)
+        
+        header_row, header_col, matched_text = header_result
+        logger.info(f"Found header: '{matched_text}' at row {header_row}, column {chr(64+header_col)}")
         
         logger.info(f"Found header row: {header_row}")
         
@@ -107,8 +114,9 @@ class HeaderProcessor:
             wb.save(str(output_file))
             logger.info(f"✅ Step 2 completed: {output_file}")
         except Exception as e:
-            logger.error(f"Failed to save file: {e}")
-            raise
+            error_msg = ErrorHandler.handle_file_error(e, Path(output_file), "saving workbook")
+            logger.error(error_msg)
+            raise ValidationError(error_msg)
         
         return str(output_file)
     

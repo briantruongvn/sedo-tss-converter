@@ -20,6 +20,7 @@ from typing import Union, Optional
 import argparse
 import sys
 import re
+from validation_utils import validate_pipeline_input, ValidationError, ErrorHandler
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -54,9 +55,8 @@ class ExcelUnmerger:
         """
         logger.info("📋 Excel Cell Unmerging - Standalone")
         
-        input_path = Path(input_file)
-        if not input_path.exists():
-            raise FileNotFoundError(f"Input file not found: {input_path}")
+        # Comprehensive input validation
+        input_path = validate_pipeline_input(input_file, "Step 1")
         
         # Auto-generate output file if not provided
         if output_file is None:
@@ -72,12 +72,13 @@ class ExcelUnmerger:
         logger.info(f"Input: {input_path}")
         logger.info(f"Output: {output_file}")
         
-        # Load workbook
+        # Load workbook with enhanced error handling
         try:
             wb = openpyxl.load_workbook(str(input_path))
         except Exception as e:
-            logger.error(f"Failed to load workbook: {e}")
-            raise
+            error_msg = ErrorHandler.handle_file_error(e, input_path, "loading workbook")
+            logger.error(error_msg)
+            raise ValidationError(error_msg)
         
         ws = wb.active
         
@@ -138,13 +139,14 @@ class ExcelUnmerger:
         fill_rate = (filled_count / processed_cells) * 100 if processed_cells > 0 else 0
         logger.info(f"📊 Data preservation: {fill_rate:.1f}% ({filled_count}/{processed_cells} cells)")
         
-        # Save result
+        # Save result with enhanced error handling
         try:
             wb.save(str(output_file))
             logger.info(f"✅ Unmerge completed: {output_file}")
         except Exception as e:
-            logger.error(f"Failed to save file: {e}")
-            raise
+            error_msg = ErrorHandler.handle_file_error(e, Path(output_file), "saving workbook")
+            logger.error(error_msg)
+            raise ValidationError(error_msg)
         
         return str(output_file)
     

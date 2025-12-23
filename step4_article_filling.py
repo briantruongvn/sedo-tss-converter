@@ -25,6 +25,7 @@ import argparse
 import sys
 import re
 import shutil
+from validation_utils import validate_pipeline_input, ValidationError, ErrorHandler, HeaderDetector
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -63,13 +64,9 @@ class ArticleFiller:
         """
         logger.info("📋 Step 4: Article Information Filling - Content Preparation")
         
-        input_path = Path(input_file)
-        step3_path = Path(step3_file)
-        
-        if not input_path.exists():
-            raise FileNotFoundError(f"Input file not found: {input_path}")
-        if not step3_path.exists():
-            raise FileNotFoundError(f"Step 3 file not found: {step3_path}")
+        # Comprehensive input validation
+        input_path = validate_pipeline_input(input_file, "Step 4")
+        step3_path = validate_pipeline_input(step3_file, "Step 4 (Step 3 template)")
         
         # Auto-generate output file if not provided
         if output_file is None:
@@ -86,15 +83,22 @@ class ArticleFiller:
         logger.info(f"Step 3 Template: {step3_path}")
         logger.info(f"Output: {output_file}")
         
-        # Load input file and find Article headers
-        input_wb = openpyxl.load_workbook(str(input_path))
-        input_ws = input_wb.active
+        # Load input file with enhanced error handling
+        try:
+            input_wb = openpyxl.load_workbook(str(input_path))
+            input_ws = input_wb.active
+        except Exception as e:
+            error_msg = ErrorHandler.handle_file_error(e, input_path, "loading input file")
+            logger.error(error_msg)
+            raise ValidationError(error_msg)
         
-        # Find Article Name and Number headers
-        header_info = self._find_article_headers(input_ws)
+        # Find Article Name and Number headers with enhanced detection
+        header_info = HeaderDetector.find_article_headers(input_ws)
         if not header_info:
-            logger.warning("⚠️  No Article Name/Number headers found - creating output without article info")
-            # Copy Step 3 file as-is
+            logger.warning("⚠️  No Article Name/Number headers found - using graceful degradation")
+            logger.info("Searched for patterns: Article Name, Article No., name, number, etc.")
+            logger.info("Creating output template without article information")
+            # Copy Step 3 file as-is (graceful degradation)
             shutil.copy2(str(step3_path), str(output_file))
             return str(output_file)
         
@@ -118,8 +122,9 @@ class ArticleFiller:
             output_wb.save(str(output_file))
             logger.info(f"✅ Step 4 completed: {output_file}")
         except Exception as e:
-            logger.error(f"Failed to save file: {e}")
-            raise
+            error_msg = ErrorHandler.handle_file_error(e, Path(output_file), "saving output file")
+            logger.error(error_msg)
+            raise ValidationError(error_msg)
         
         return str(output_file)
     
