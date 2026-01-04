@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Ngoc Son Internal TSS Converter - Streamlit Web Application
-Convert Ngoc Son Internal TSS to Standard Internal TSS
+SEDO Internal TSS Converter - Streamlit Web Application
+Convert SEDO Internal TSS to Standard Internal TSS
 """
 
 import streamlit as st
@@ -22,84 +22,62 @@ from pipeline_config import PipelineConfig, PipelineConstants
 
 # Configure page
 st.set_page_config(
-    page_title="Ngoc Son Internal TSS Converter",
+    page_title="SEDO Internal TSS Converter",
     page_icon="📊",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for styling
+# Clean, professional CSS styling to match target design
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
+        background-color: #ffffff;
     }
     
     .main-header {
         text-align: center;
-        padding: 2rem 0;
-        margin-bottom: 2rem;
+        padding: 0.5rem 0 1rem 0;
+        margin-bottom: 1rem;
     }
     
     .main-title {
-        font-size: 2.5rem;
-        font-weight: 700;
+        font-size: 3rem;
+        font-weight: 600;
         color: #1f2937;
         margin-bottom: 0.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-    }
-    
-    .chart-icon {
-        font-size: 2.2rem;
-        background: linear-gradient(45deg, #3b82f6, #10b981, #f59e0b);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
     }
     
     .main-subtitle {
-        font-size: 1.1rem;
+        font-size: 1rem;
         color: #6b7280;
         font-weight: 400;
         margin-top: 0.5rem;
     }
     
     .upload-section {
-        background: #f8fafc;
-        border: 2px dashed #d1d5db;
-        border-radius: 12px;
-        padding: 3rem 2rem;
+        background: #fafafa;
+        border: 1px dashed #d1d5db;
+        border-radius: 8px;
+        padding: 2rem 1rem;
         text-align: center;
-        margin: 2rem 0;
-        transition: all 0.3s ease;
-    }
-    
-    .upload-section:hover {
-        border-color: #3b82f6;
-        background: #f0f9ff;
-    }
-    
-    .upload-icon {
-        font-size: 3rem;
-        color: #9ca3af;
-        margin-bottom: 1rem;
+        margin: 1rem 0;
     }
     
     .upload-title {
-        font-size: 1.25rem;
-        font-weight: 600;
+        font-size: 1.2rem;
+        font-weight: 500;
         color: #374151;
         margin-bottom: 0.5rem;
     }
     
     .upload-subtitle {
         color: #6b7280;
-        margin-bottom: 2rem;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
     }
     
     .file-constraints {
@@ -112,7 +90,7 @@ st.markdown("""
         background: white;
         border: 1px solid #e5e7eb;
         border-radius: 8px;
-        padding: 1.5rem;
+        padding: 1rem;
         margin: 1rem 0;
     }
     
@@ -120,20 +98,22 @@ st.markdown("""
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        margin-bottom: 1rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+        color: #374151;
     }
     
     .step-number {
         background: #3b82f6;
         color: white;
-        width: 24px;
-        height: 24px;
+        width: 20px;
+        height: 20px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 0.75rem;
-        font-weight: 600;
+        font-weight: 500;
     }
     
     .step-completed {
@@ -142,20 +122,6 @@ st.markdown("""
     
     .step-current {
         background: #f59e0b;
-    }
-    
-    .progress-bar {
-        background: #e5e7eb;
-        height: 8px;
-        border-radius: 4px;
-        overflow: hidden;
-        margin: 1rem 0;
-    }
-    
-    .progress-fill {
-        background: linear-gradient(90deg, #3b82f6, #10b981);
-        height: 100%;
-        transition: width 0.3s ease;
     }
     
     .success-message {
@@ -178,17 +144,16 @@ st.markdown("""
     
     .download-section {
         text-align: center;
-        padding: 2rem;
+        padding: 1.5rem;
         background: #f8fafc;
-        border-radius: 12px;
-        margin: 2rem 0;
+        border-radius: 8px;
+        margin: 1rem 0;
     }
     
     /* Hide Streamlit default elements */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    
     .stDeployButton {display: none;}
     
     /* Custom button styling */
@@ -197,14 +162,19 @@ st.markdown("""
         color: white;
         border: none;
         border-radius: 6px;
-        padding: 0.5rem 2rem;
+        padding: 0.5rem 1.5rem;
         font-weight: 500;
+        font-size: 0.9rem;
         transition: all 0.2s ease;
     }
     
     .stButton > button:hover {
         background: #2563eb;
-        transform: translateY(-1px);
+    }
+    
+    /* File uploader styling */
+    .stFileUploader > div > div > div {
+        padding: 1rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -214,11 +184,10 @@ def show_header():
     st.markdown("""
     <div class="main-header">
         <div class="main-title">
-            <span class="chart-icon">📊</span>
-            Ngoc Son Internal TSS Converter
+            SEDO Internal TSS Converter
         </div>
         <div class="main-subtitle">
-            Convert Ngoc Son Internal TSS to Standard Internal TSS
+            Convert SEDO Internal TSS to Standard Internal TSS
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -227,7 +196,6 @@ def show_upload_section():
     """Display the file upload section"""
     st.markdown("""
     <div class="upload-section">
-        <div class="upload-icon">🗂️</div>
         <div class="upload-title">Upload Excel File</div>
         <div class="upload-subtitle">Select .xlsx file to convert</div>
     </div>
@@ -273,26 +241,28 @@ def process_pipeline(uploaded_file, progress_placeholder, status_placeholder):
             )
             
             if result.success:
-                return result.final_output, None
+                # Read the file content before temp directory is deleted
+                if os.path.exists(result.final_output):
+                    with open(result.final_output, "rb") as f:
+                        file_data = f.read()
+                    # Generate filename
+                    filename = os.path.basename(result.final_output)
+                    return file_data, filename, None
+                else:
+                    return None, None, "Output file was not created successfully"
             else:
-                return None, result.error
+                return None, None, result.error
                 
     except ValidationError as e:
-        return None, f"Validation Error: {str(e)}"
+        return None, None, f"Validation Error: {str(e)}"
     except Exception as e:
-        return None, f"Processing Error: {str(e)}\n\nDetails:\n{traceback.format_exc()}"
+        return None, None, f"Processing Error: {str(e)}\n\nDetails:\n{traceback.format_exc()}"
 
 def update_progress(progress_placeholder, status_placeholder, current, total, status):
     """Update progress bar and status"""
     progress = current / total
     
     with progress_placeholder.container():
-        st.markdown(f"""
-        <div class="progress-bar">
-            <div class="progress-fill" style="width: {progress * 100}%"></div>
-        </div>
-        """, unsafe_allow_html=True)
-        
         st.progress(progress)
     
     with status_placeholder.container():
@@ -337,24 +307,21 @@ def main():
             """, unsafe_allow_html=True)
             return
         
-        # Show file info
-        st.markdown(f"""
-        <div class="process-card">
-            <strong>📄 File uploaded:</strong> {uploaded_file.name}<br>
-            <strong>📊 Size:</strong> {uploaded_file.size / (1024*1024):.1f} MB
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Process button
-        if st.button("🚀 Start Conversion", type="primary"):
+        # Process button - centered
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
+            conversion_button = st.button("🚀 Start Conversion", type="primary", use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
             
+        if conversion_button:
             # Progress tracking
             progress_placeholder = st.empty()
             status_placeholder = st.empty()
             
             # Process the pipeline
             with st.spinner("Processing your file..."):
-                result_file, error = process_pipeline(uploaded_file, progress_placeholder, status_placeholder)
+                file_data, filename, error = process_pipeline(uploaded_file, progress_placeholder, status_placeholder)
             
             if error:
                 st.markdown(f"""
@@ -372,10 +339,7 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 # Download section
-                if result_file and os.path.exists(result_file):
-                    with open(result_file, "rb") as f:
-                        result_data = f.read()
-                    
+                if file_data and filename:
                     # Generate download filename
                     base_name = uploaded_file.name.rsplit('.', 1)[0]
                     download_filename = f"{base_name}-Converted.xlsx"
@@ -387,20 +351,20 @@ def main():
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    st.download_button(
-                        label="📥 Download Converted File",
-                        data=result_data,
-                        file_name=download_filename,
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        type="primary"
-                    )
+                    # Center the download button
+                    col1, col2, col3 = st.columns([1, 1, 1])
+                    with col2:
+                        st.download_button(
+                            label="📥 Download Converted File",
+                            data=file_data,
+                            file_name=download_filename,
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            type="primary",
+                            use_container_width=True
+                        )
+                else:
+                    st.error("❌ Output file not found. Please try the conversion again.")
     
-    # Footer
-    st.markdown("""
-    <div style="text-align: center; margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #e5e7eb; color: #9ca3af;">
-        <p>🔧 Powered by SEDO TSS Converter Pipeline • Built with ❤️ using Streamlit</p>
-    </div>
-    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
