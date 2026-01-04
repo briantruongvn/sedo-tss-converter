@@ -23,6 +23,9 @@ import argparse
 import sys
 import re
 import shutil
+from validation_utils import ValidationError, handle_validation_error
+from pipeline_validator import validate_before_pipeline
+from pipeline_config import PipelineConfig
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -38,6 +41,21 @@ class FinishedProductProcessor:
     - Converts "finished product" entries to standardized "Art" format
     - Clears redundant data in specified columns for cleaner output
     """
+    
+    @classmethod
+    def get_metadata(cls):
+        """Get step metadata from centralized configuration"""
+        return PipelineConfig.get_step(7)
+    
+    @property
+    def step_name(self):
+        """Get step display name"""
+        return self.get_metadata().display_name
+    
+    @property
+    def step_description(self):
+        """Get step description"""
+        return self.get_metadata().description
     
     def __init__(self, base_dir: Optional[str] = None):
         self.base_dir = Path(base_dir) if base_dir else Path.cwd()

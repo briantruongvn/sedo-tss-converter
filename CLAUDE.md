@@ -23,9 +23,29 @@ python validate_my_file.py "data/input/your-file.xlsx"
 
 ## 🚀 Sử dụng nhanh
 
-### Xử lý toàn bộ pipeline (8 steps)
+### 🎯 **Centralized Pipeline Execution** (Recommended)
+```python
+# Using centralized pipeline runner - Single Point of Truth
+from pipeline_runner import run_complete_pipeline
+
+result = run_complete_pipeline("data/input/input-1.xlsx", verbose=True)
+if result.success:
+    print(f"✅ Pipeline completed: {result.final_output}")
+else:
+    print(f"❌ Pipeline failed: {result.error}")
+```
+
+### 🔄 **Web Interface** (Streamlit)
 ```bash
-# Complete pipeline: Input → Output final
+# Launch web interface - uses centralized configuration automatically
+streamlit run app.py
+```
+- **Features**: Drag & drop upload, real-time progress, automatic pipeline execution
+- **Sync**: Automatically reflects any pipeline updates from centralized config
+
+### ⚙️ **Individual CLI Steps** (Manual/Advanced)
+```bash
+# Complete pipeline: Input → Output final (manual execution)
 python step1_unmerge_standalone.py data/input/input-1.xlsx
 python step2_header_processing.py data/output/output-1-Step1.xlsx  
 python step3_template_creation.py data/output/output-1-Step2.xlsx
@@ -36,12 +56,12 @@ python step7_finished_product.py data/input/input-1.xlsx --step6-file data/outpu
 python step8_document_processing.py data/input/input-1.xlsx --step7-file data/output/output-1-Step7.xlsx
 ```
 
-### Xử lý 1 step riêng lẻ
+### 🔧 **Single Step Execution**
 ```bash
 # Example: Chạy riêng Step 1
 python step1_unmerge_standalone.py data/input/input-1.xlsx -v
 
-# Example: Chạy riêng Step 8 (final output)
+# Example: Chạy riêng Step 8 (final output)  
 python step8_document_processing.py data/input/input-1.xlsx --step7-file data/output/output-1-Step7.xlsx
 ```
 
@@ -49,6 +69,11 @@ python step8_document_processing.py data/input/input-1.xlsx --step7-file data/ou
 
 ```
 /
+├── 🎯 CENTRALIZED CONFIGURATION (Single Point of Truth)
+│   ├── pipeline_config.py               # Step definitions, metadata, dependencies
+│   ├── pipeline_runner.py               # Unified execution engine for all interfaces
+│   └── app.py                          # Streamlit web interface (auto-synced)
+│
 ├── 🔍 VALIDATION SYSTEM
 │   ├── validate_my_file.py              # User-friendly file validator
 │   ├── pipeline_validator.py            # Comprehensive pre-flight validation
@@ -270,6 +295,126 @@ python step8_document_processing.py data/input/input-X.xlsx --step7-file data/ou
 
 ---
 
+# 🎯 Centralized Configuration System
+
+## ⚡ Single Point of Truth Architecture
+
+**Starting in version 3.0.0**, the pipeline uses a centralized configuration system that eliminates duplicate code between CLI and Streamlit interfaces.
+
+### 🔧 **Core Components**
+
+#### `pipeline_config.py` - Central Configuration
+```python
+from pipeline_config import PipelineConfig
+
+# Get all step metadata
+steps = PipelineConfig.get_all_steps()
+for step in steps:
+    print(f"Step {step.step_number}: {step.display_name}")
+    print(f"Description: {step.description}")
+    print(f"Class: {step.class_name}")
+
+# Get specific step
+step1 = PipelineConfig.get_step(1)
+print(f"Step 1 module: {step1.module_name}")
+```
+
+#### `pipeline_runner.py` - Unified Execution
+```python
+from pipeline_runner import PipelineRunner, run_complete_pipeline
+
+# Quick execution
+result = run_complete_pipeline("input.xlsx", verbose=True)
+
+# Advanced execution with progress tracking
+def progress_callback(progress, current, total, status):
+    print(f"Progress: {progress*100:.1f}% - {status}")
+
+runner = PipelineRunner(base_dir=".", verbose=True)
+result = runner.run_pipeline(
+    input_file="input.xlsx",
+    progress_callback=progress_callback
+)
+```
+
+### 🔄 **Automatic Synchronization**
+
+**Before (Manual Maintenance)**:
+- Update step names in `app.py` hardcoded list ❌
+- Update CLI help text in each step file ❌ 
+- Manually sync descriptions between interfaces ❌
+- Risk of inconsistency between CLI and Web ❌
+
+**After (Centralized Configuration)**:
+- Update step metadata in `pipeline_config.py` ONCE ✅
+- CLI and Streamlit automatically sync ✅
+- Consistent naming and descriptions ✅
+- Single source of truth for all interfaces ✅
+
+### 🚀 **Benefits Achieved**
+
+1. **🎯 Single Source of Truth**: All pipeline metadata in `pipeline_config.py`
+2. **🔄 Automatic Updates**: Changes propagate to both CLI and web interface
+3. **🛠️ Easier Maintenance**: Add/modify/remove steps in one location
+4. **📊 Consistent Experience**: Same step names, descriptions across all interfaces
+5. **🧪 Better Testing**: Centralized validation of step dependencies
+6. **📈 Future-Proof**: Easy to add new execution modes (API, desktop app, etc.)
+
+### 🔧 **Making Changes to Pipeline**
+
+#### Adding a New Step (Example: Step 9)
+```python
+# 1. Add to pipeline_config.py
+StepMetadata(
+    step_number=9,
+    name="optimize_output",
+    display_name="Optimizing final output", 
+    description="Apply final optimizations and quality checks",
+    class_name="OutputOptimizer",
+    module_name="step9_output_optimization",
+    depends_on=[8],
+    cli_script="step9_output_optimization.py",
+    estimated_duration_seconds=5
+)
+
+# 2. Create step9_output_optimization.py with standard interface
+class OutputOptimizer:
+    @classmethod
+    def get_metadata(cls):
+        return PipelineConfig.get_step(9)
+    
+    def optimize_output(self, input_file, output_file=None):
+        # Implementation here
+        pass
+
+# 3. Done! CLI and Streamlit automatically include Step 9
+```
+
+#### Modifying Step Names/Descriptions
+```python
+# Edit pipeline_config.py - changes apply everywhere
+StepMetadata(
+    step_number=1,
+    display_name="Unmerging merged cells",  # ← Changed here
+    description="New description here",      # ← Changed here
+    # ... rest unchanged
+)
+# Streamlit and CLI automatically reflect changes
+```
+
+### 📋 **Migration Completed**
+
+| Component | Status | Changes Made |
+|-----------|--------|--------------|
+| `pipeline_config.py` | ✅ **NEW** | Central step definitions and metadata |
+| `pipeline_runner.py` | ✅ **NEW** | Unified execution engine |
+| `app.py` | ✅ **UPDATED** | Uses centralized pipeline runner |
+| `step1-8.py` | ✅ **UPDATED** | Added metadata methods |
+| CLI compatibility | ✅ **MAINTAINED** | Full backward compatibility |
+| Documentation | ✅ **UPDATED** | Reflects centralized approach |
+
+---
+
 # 👨‍💻 Developer Guide
 
 ## 🏗️ Architecture Overview
@@ -387,6 +532,6 @@ pip install openpyxl  # Excel file processing
 
 ---
 
-**📝 Last Updated**: 2025-12-23  
-**🔧 Version**: 2.0.0 (8-step pipeline with validation system)  
+**📝 Last Updated**: 2026-01-04  
+**🔧 Version**: 3.0.0 (Centralized configuration with single point of truth)  
 **👨‍💻 Maintainer**: Check git log for contributors

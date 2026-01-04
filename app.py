@@ -17,14 +17,8 @@ import traceback
 # Import our pipeline modules
 from validation_utils import ValidationError, handle_validation_error
 from pipeline_validator import validate_before_pipeline
-from step1_unmerge_standalone import ExcelUnmerger
-from step2_header_processing import HeaderProcessor
-from step3_template_creation import TemplateCreator
-from step4_article_filling import ArticleFiller
-from step5_data_transformation import DataTransformer
-from step6_sd_processing import SDProcessor
-from step7_finished_product import FinishedProductProcessor
-from step8_document_processing import DocumentProcessor
+from pipeline_runner import run_pipeline_with_progress, PipelineExecutionResult
+from pipeline_config import PipelineConfig, PipelineConstants
 
 # Configure page
 st.set_page_config(
@@ -255,21 +249,7 @@ def validate_uploaded_file(uploaded_file):
     return True, "File validation passed"
 
 def process_pipeline(uploaded_file, progress_placeholder, status_placeholder):
-    """Process the complete 8-step pipeline"""
-    
-    steps = [
-        "Validating input file",
-        "Unmerging cells", 
-        "Processing headers",
-        "Creating template",
-        "Filling article information",
-        "Transforming data",
-        "Processing SD data",
-        "Validating finished products", 
-        "Processing final document"
-    ]
-    
-    total_steps = len(steps)
+    """Process the complete 8-step pipeline using centralized configuration"""
     
     try:
         # Create temporary directory for processing
@@ -281,70 +261,22 @@ def process_pipeline(uploaded_file, progress_placeholder, status_placeholder):
             with open(input_file, "wb") as f:
                 f.write(uploaded_file.getbuffer())
             
-            # Track outputs
-            outputs = {}
-            current_step = 0
+            # Create progress callback function for Streamlit
+            def progress_callback(progress, current, total, status_message):
+                update_progress(progress_placeholder, status_placeholder, current, total, status_message)
             
-            # Step 0: Validation
-            update_progress(progress_placeholder, status_placeholder, current_step, total_steps, steps[current_step])
+            # Run pipeline using centralized runner
+            result = run_pipeline_with_progress(
+                input_file=input_file,
+                progress_callback=progress_callback,
+                base_dir=str(temp_dir)
+            )
             
-            if not validate_before_pipeline(input_file, verbose=False):
-                raise ValidationError("Input file validation failed")
-            
-            current_step += 1
-            
-            # Step 1: Unmerge cells
-            update_progress(progress_placeholder, status_placeholder, current_step, total_steps, steps[current_step])
-            unmerger = ExcelUnmerger(str(temp_dir))
-            outputs['step1'] = unmerger.unmerge_file(input_file)
-            current_step += 1
-            
-            # Step 2: Header processing
-            update_progress(progress_placeholder, status_placeholder, current_step, total_steps, steps[current_step])
-            processor = HeaderProcessor(str(temp_dir))
-            outputs['step2'] = processor.process_file(outputs['step1'])
-            current_step += 1
-            
-            # Step 3: Template creation
-            update_progress(progress_placeholder, status_placeholder, current_step, total_steps, steps[current_step])
-            creator = TemplateCreator(str(temp_dir))
-            outputs['step3'] = creator.create_template(outputs['step2'])
-            current_step += 1
-            
-            # Step 4: Article filling
-            update_progress(progress_placeholder, status_placeholder, current_step, total_steps, steps[current_step])
-            filler = ArticleFiller(str(temp_dir))
-            outputs['step4'] = filler.fill_article_info(input_file, outputs['step3'])
-            current_step += 1
-            
-            # Step 5: Data transformation
-            update_progress(progress_placeholder, status_placeholder, current_step, total_steps, steps[current_step])
-            transformer = DataTransformer(str(temp_dir))
-            outputs['step5'] = transformer.transform_data(outputs['step2'], outputs['step4'])
-            current_step += 1
-            
-            # Step 6: SD processing
-            update_progress(progress_placeholder, status_placeholder, current_step, total_steps, steps[current_step])
-            sd_processor = SDProcessor(str(temp_dir))
-            outputs['step6'] = sd_processor.process_sd_data(outputs['step2'], step4_file=outputs['step5'])
-            current_step += 1
-            
-            # Step 7: Finished product validation
-            update_progress(progress_placeholder, status_placeholder, current_step, total_steps, steps[current_step])
-            product_processor = FinishedProductProcessor(str(temp_dir))
-            outputs['step7'] = product_processor.process_finished_products(input_file, step6_file=outputs['step6'])
-            current_step += 1
-            
-            # Step 8: Final document processing
-            update_progress(progress_placeholder, status_placeholder, current_step, total_steps, steps[current_step])
-            doc_processor = DocumentProcessor(str(temp_dir))
-            outputs['step8'] = doc_processor.process_document(input_file, step7_file=outputs['step7'])
-            
-            # Complete
-            update_progress(progress_placeholder, status_placeholder, total_steps, total_steps, "Processing complete!")
-            
-            return outputs['step8'], None
-            
+            if result.success:
+                return result.final_output, None
+            else:
+                return None, result.error
+                
     except ValidationError as e:
         return None, f"Validation Error: {str(e)}"
     except Exception as e:
