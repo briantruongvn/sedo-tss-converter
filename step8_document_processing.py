@@ -139,8 +139,8 @@ class DocumentProcessor:
         
         rows_to_delete = []
         
-        # Scan all rows for "finished product" in column Q (column 17)
-        for row in range(4, worksheet.max_row + 1):  # Start from row 4 (after headers)
+        # Scan all rows for "finished product" in column Q (column 17) - skip header rows
+        for row in range(11, worksheet.max_row + 1):  # Start from row 11 (after headers)
             q_value = worksheet.cell(row, 17).value  # Column Q = 17
             if q_value and isinstance(q_value, str):
                 if 'finished product' in q_value.lower():
@@ -169,8 +169,8 @@ class DocumentProcessor:
         
         rows_processed = 0
         
-        # Process all data rows
-        for row in range(4, worksheet.max_row + 1):  # Start from row 4 (after headers)
+        # Process all data rows (skip header rows 1-10)
+        for row in range(11, worksheet.max_row + 1):  # Start from row 11 (after headers)
             q_value = worksheet.cell(row, 17).value  # Column Q = 17
             
             # Skip empty or non-string values
