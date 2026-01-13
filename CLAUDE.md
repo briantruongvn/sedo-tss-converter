@@ -1,537 +1,329 @@
-# 📋 SEDO TSS Converter
+# CLAUDE.md
 
-## 🎯 Mục tiêu
-Chuyển đổi file Excel compliance test summary từ format Input (phức tạp, nhiều merged cells) sang format Output (structured, database-ready).
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Key principle: ADAPTIVE, not HARDCODED!** 🔑
+## Project Overview
 
-## ✅ Trước khi bắt đầu
+**SEDO TSS Converter** - Transforms complex Excel compliance test summary files (with merged cells) into clean, structured, database-ready format through an 8-step processing pipeline.
 
-### Kiểm tra file input
+**Core Principle**: ADAPTIVE, not HARDCODED. Use dynamic header detection and fuzzy matching, never assume fixed column positions or file structure.
+
+## Quick Commands
+
+### Validation (ALWAYS run first)
 ```bash
-# Bước 1: Kiểm tra file trước khi chạy pipeline
+# User-friendly validation
 python validate_my_file.py "data/input/your-file.xlsx"
 
-# Bước 2: Chỉ tiếp tục nếu validation PASSED
+# Comprehensive pre-flight validation
+python pipeline_validator.py "data/input/your-file.xlsx" -v
 ```
 
-**📋 Tài liệu hỗ trợ:**
-- `INPUT_REQUIREMENTS.md` - Yêu cầu chi tiết file input
-- `QUICK_CHECKLIST.md` - Checklist nhanh 5 phút  
-- `EMAIL_TEMPLATE.md` - Template gửi cho users
-- `pipeline_validator.py` - Comprehensive validation tool
+### Pipeline Execution
 
-## 🚀 Sử dụng nhanh
-
-### 🎯 **Centralized Pipeline Execution** (Recommended)
+**Recommended: Centralized Pipeline Runner**
 ```python
-# Using centralized pipeline runner - Single Point of Truth
 from pipeline_runner import run_complete_pipeline
 
 result = run_complete_pipeline("data/input/input-1.xlsx", verbose=True)
 if result.success:
-    print(f"✅ Pipeline completed: {result.final_output}")
+    print(f"✅ Output: {result.final_output}")
 else:
-    print(f"❌ Pipeline failed: {result.error}")
+    print(f"❌ Error: {result.error}")
 ```
 
-### 🔄 **Web Interface** (Streamlit)
+**Web Interface**
 ```bash
-# Launch web interface - uses centralized configuration automatically
 streamlit run app.py
 ```
-- **Features**: Drag & drop upload, real-time progress, automatic pipeline execution
-- **Sync**: Automatically reflects any pipeline updates from centralized config
 
-### ⚙️ **Individual CLI Steps** (Manual/Advanced)
-```bash
-# Complete pipeline: Input → Output final (manual execution)
-python step1_unmerge_standalone.py data/input/input-1.xlsx
-python step2_header_processing.py data/output/output-1-Step1.xlsx  
-python step3_template_creation.py data/output/output-1-Step2.xlsx
-python step4_article_filling.py data/input/input-1.xlsx data/output/output-1-Step3.xlsx
-python step5_data_transformation.py data/output/output-1-Step2.xlsx data/output/output-1-Step4.xlsx
-python step6_sd_processing.py data/output/output-1-Step2.xlsx --step4-file data/output/output-1-Step5.xlsx
-python step7_finished_product.py data/input/input-1.xlsx --step6-file data/output/output-1-Step6.xlsx
-python step8_document_processing.py data/input/input-1.xlsx --step7-file data/output/output-1-Step7.xlsx
-```
-
-### 🔧 **Single Step Execution**
-```bash
-# Example: Chạy riêng Step 1
-python step1_unmerge_standalone.py data/input/input-1.xlsx -v
-
-# Example: Chạy riêng Step 8 (final output)  
-python step8_document_processing.py data/input/input-1.xlsx --step7-file data/output/output-1-Step7.xlsx
-```
-
-## 📁 Cấu trúc project
-
-```
-/
-├── 🎯 CENTRALIZED CONFIGURATION (Single Point of Truth)
-│   ├── pipeline_config.py               # Step definitions, metadata, dependencies
-│   ├── pipeline_runner.py               # Unified execution engine for all interfaces
-│   └── app.py                          # Streamlit web interface (auto-synced)
-│
-├── 🔍 VALIDATION SYSTEM
-│   ├── validate_my_file.py              # User-friendly file validator
-│   ├── pipeline_validator.py            # Comprehensive pre-flight validation
-│   └── validation_utils.py              # Core validation utilities & error handling
-│
-├── 🔄 PROCESSING PIPELINE (8 steps)
-│   ├── step1_unmerge_standalone.py      # Step 1: Unmerge cells
-│   ├── step2_header_processing.py       # Step 2: Process headers  
-│   ├── step3_template_creation.py       # Step 3: Create template
-│   ├── step4_article_filling.py         # Step 4: Fill article info
-│   ├── step5_data_transformation.py     # Step 5: Transform data  
-│   ├── step6_sd_processing.py           # Step 6: SD processing & de-duplication
-│   ├── step7_finished_product.py        # Step 7: Article matching & validation
-│   └── step8_document_processing.py     # Step 8: Final document processing
-│
-├── 📋 DOCUMENTATION
-│   ├── INPUT_REQUIREMENTS.md            # Detailed file requirements
-│   ├── QUICK_CHECKLIST.md              # 5-minute validation checklist
-│   ├── EMAIL_TEMPLATE.md               # Template for users
-│   └── CLAUDE.md                       # This file - developer guide
-│
-├── 📦 DEPENDENCIES
-│   └── requirements.txt                 # Python dependencies
-│
-└── 📊 DATA
-    ├── input/                          # Input files (Input-X.xlsx)
-    └── output/                         # All outputs (Step1→Step8)
-```
-
-## 🔄 Pipeline Logic - 8 Steps Complete
-
-### 🔍 **Pre-validation**
-```bash
-python validate_my_file.py "input.xlsx"  # ALWAYS run first!
-```
-- **Purpose**: Prevent pipeline failures by validating upfront
-- **Checks**: File format, size, structure, required headers
-- **Output**: PASS/FAIL with actionable error messages
-
-### **Step 1: Unmerge Cells** 📊
+**Manual CLI Execution** (8 steps)
 ```bash
 python step1_unmerge_standalone.py data/input/input-X.xlsx
-```
-- **Input**: `data/input/Input-X.xlsx` (raw file with merged cells)
-- **Output**: `data/output/output-X-Step1.xlsx`
-- **Logic**: 
-  - Detect all merged cell ranges
-  - Preserve top-left cell values
-  - Unmerge all ranges and fill empty cells
-  - **Key**: Foundation step - makes data accessible
-
-### **Step 2: Header Processing** 🎯
-```bash
 python step2_header_processing.py data/output/output-X-Step1.xlsx
-```
-- **Input**: `data/output/output-X-Step1.xlsx`
-- **Output**: `data/output/output-X-Step2.xlsx`
-- **Logic**: Find "General Type/Sub-Type in Connect" header → Process 3 rows below with 3-case logic:
-  - **Case 1**: `val16==val17==val18` → empty, keep val17, empty
-  - **Case 2**: `val16!=val17==val18` → keep val16, keep val17, empty  
-  - **Case 3**: `val16!=val17!=val18` → keep val16, val17+" "+val18, empty
-
-### **Step 3: Template Creation** 📋
-```bash
 python step3_template_creation.py data/output/output-X-Step2.xlsx
-```
-- **Input**: `data/output/output-X-Step2.xlsx`
-- **Output**: `data/output/output-X-Step3.xlsx`
-- **Logic**:
-  - Create structured template with 17 standardized headers
-  - Apply professional formatting (borders, colors, fonts)
-  - Set column widths and cell alignment
-  - **Purpose**: Clean, database-ready structure
-
-### **Step 4: Article Filling** 🏷️
-```bash
 python step4_article_filling.py data/input/input-X.xlsx data/output/output-X-Step3.xlsx
-```
-- **Input**: Original input + Step3 template
-- **Output**: `data/output/output-X-Step4.xlsx`
-- **Logic**:
-  - **Dynamic header detection**: Find "Article Name"/"Article No." headers (adaptive positioning)
-  - **Multi-article extraction**: Extract multiple articles from original file
-  - **Professional formatting**: Place in R+ columns, 90° rotation, orange background
-  - **Boundary detection**: Only search above "General Type" header
-
-### **Step 5: Data Transformation** 🔄
-```bash
 python step5_data_transformation.py data/output/output-X-Step2.xlsx data/output/output-X-Step4.xlsx
-```
-- **Input**: Step2 data + Step4 template
-- **Output**: `data/output/output-X-Step5.xlsx`
-- **Logic**:
-  - **Intelligent mapping**: Map Step2 data → Step4 template structure
-  - **Data preservation**: Ensure no information loss during transformation
-  - **Format consistency**: Maintain template formatting while adding data
-
-### **Step 6: SD Processing** 🔧
-```bash
 python step6_sd_processing.py data/output/output-X-Step2.xlsx --step4-file data/output/output-X-Step5.xlsx
-```
-- **Input**: Step2 + Step5
-- **Output**: `data/output/output-X-Step6.xlsx`
-- **Logic**:
-  - **H→P column mapping**: Map H values to corresponding P column
-  - **Multi-line parsing**: Handle complex SD data with line breaks
-  - **Smart de-duplication**: Remove duplicates while preserving unique entries
-  - **Data validation**: Ensure SD data integrity
-
-### **Step 7: Finished Product Validation** ✅
-```bash
 python step7_finished_product.py data/input/input-X.xlsx --step6-file data/output/output-X-Step6.xlsx
-```
-- **Input**: Original input + Step6
-- **Output**: `data/output/output-X-Step7.xlsx`
-- **Logic**:
-  - **Article matching**: Match finished products with article definitions
-  - **Fuzzy matching**: Handle variations in article names (case, spacing)
-  - **"All items" logic**: If P contains "All"/"All items"/"All products" → mark all articles
-  - **Validation rules**: Ensure product-article consistency
-
-### **Step 8: Document Processing** 📄
-```bash
 python step8_document_processing.py data/input/input-X.xlsx --step7-file data/output/output-X-Step7.xlsx
 ```
-- **Input**: Original input + Step7
-- **Output**: `data/output/output-X-Step8.xlsx` ✅ **FINAL RESULT**
-- **Logic**:
-  - **Requirement source extraction**: Parse complex requirement patterns (IOS, MAT, EN, etc.)
-  - **Advanced pattern matching**: Handle separators (&, ,, ;) and nested requirements
-  - **Document validation**: Ensure all requirements properly categorized
-  - **Final quality check**: Comprehensive output validation
 
-## 🎯 Success Criteria
-
-Pipeline được coi là thành công khi:
-1. ✅ **Pre-validation PASSED** - File input đúng format và structure
-2. ✅ **All 8 steps execute** - Không có step nào fail
-3. ✅ **Data integrity** - Không mất thông tin qua các step
-4. ✅ **Output quality** - Step8 file đúng format, đủ data
-5. ✅ **Performance** - Xử lý file 1000 rows trong <10 seconds
-6. ✅ **Error handling** - Clear error messages khi có issues
-
-## 🔧 Debug & Troubleshooting
-
-### Validation trước khi chạy
+### Debug Individual Steps
 ```bash
-# ALWAYS validate input first
-python validate_my_file.py "data/input/your-file.xlsx" -v
-
-# Advanced validation
-python pipeline_validator.py "data/input/your-file.xlsx" -v
-```
-
-### Debug từng step
-```bash
-# Debug Step 1
+# Add -v flag for verbose output
 python step1_unmerge_standalone.py data/input/input-X.xlsx -v
-
-# Debug Step 2  
-python step2_header_processing.py data/output/output-X-Step1.xlsx -v
-
-# Debug Step 8 (final)
 python step8_document_processing.py data/input/input-X.xlsx --step7-file data/output/output-X-Step7.xlsx -v
 ```
 
-### Common Issues & Solutions
-
-#### **🚨 Input Validation Failures**
-- **Issue**: `"General Type header not found"`
-- **Solution**: Verify "General Type/Sub-Type in Connect" exists in first 50 rows
-- **Fix**: Check exact text matching, case insensitive OK
-
-#### **🚨 Pipeline Step Failures**
-- **Step 1**: Merge detection problems → check Excel file structure
-- **Step 2**: Header not found → verify "General Type/Sub-Type in Connect" exists  
-- **Step 4**: Article headers missing → check "Article Name"/"Article No." headers above "General Type"
-- **Step 6**: Over-aggressive de-duplication → check empty columns in H→P mapping
-- **Step 7**: Article matching fails → verify article definitions in original file
-- **Step 8**: Pattern extraction errors → check requirement source formatting
-
-#### **🚨 Performance Issues**
-- **Large files (>50MB)**: Consider splitting into smaller chunks
-- **Many merged cells (>1000)**: Step 1 may take longer, normal behavior
-- **Complex SD data**: Step 6 processing time increases with data complexity
-
-## 📊 Test Files
-
-Đã test với các files:
-- `Test1.xlsx`: Complete test case with all features
-- `input-1.xlsx`: Single article, basic structure
-- `input-4.xlsx`: Multiple articles  
-- `input-5.xlsx`: DRÖNA case study
-- `input-6.xlsx`: Different column positions
-- `Drona.xlsx`: Real-world example
-- `Skubb.xlsx`: Multiple articles (6 articles)
-- `frakta.xlsx`: SPARKA series (5 articles)
-
-## 🎯 Key Features
-
-### **🔍 Validation System**
-- **Pre-flight validation**: Comprehensive file checking before processing
-- **Early termination**: Stop on invalid input with clear error messages
-- **User guidance**: Detailed requirements documentation and tools
-
-### **🔧 Processing Pipeline**
-- **Adaptive logic**: Dynamic header detection, không hardcode positions
-- **Robust unmerging**: Handles complex merged cell patterns
-- **Multi-article support**: Extract multiple articles automatically
-- **Smart de-duplication**: Intelligent duplicate removal
-- **Advanced matching**: Fuzzy article matching with "All items" logic
-- **Pattern recognition**: Complex requirement source extraction
-
-### **🛠️ Development Features**
-- **Error handling**: Structured ValidationError with actionable messages
-- **Standalone tools**: Mỗi step có thể chạy độc lập
-- **Comprehensive logging**: Detailed progress tracking
-- **Clean architecture**: Modular, maintainable code structure
-
----
-
-# 🎯 Centralized Configuration System
-
-## ⚡ Single Point of Truth Architecture
-
-**Starting in version 3.0.0**, the pipeline uses a centralized configuration system that eliminates duplicate code between CLI and Streamlit interfaces.
-
-### 🔧 **Core Components**
-
-#### `pipeline_config.py` - Central Configuration
-```python
-from pipeline_config import PipelineConfig
-
-# Get all step metadata
-steps = PipelineConfig.get_all_steps()
-for step in steps:
-    print(f"Step {step.step_number}: {step.display_name}")
-    print(f"Description: {step.description}")
-    print(f"Class: {step.class_name}")
-
-# Get specific step
-step1 = PipelineConfig.get_step(1)
-print(f"Step 1 module: {step1.module_name}")
+### Dependencies
+```bash
+pip install -r requirements.txt
 ```
 
-#### `pipeline_runner.py` - Unified Execution
-```python
-from pipeline_runner import PipelineRunner, run_complete_pipeline
+## Architecture Overview
 
-# Quick execution
-result = run_complete_pipeline("input.xlsx", verbose=True)
+### Centralized Configuration System (v3.0.0+)
 
-# Advanced execution with progress tracking
-def progress_callback(progress, current, total, status):
-    print(f"Progress: {progress*100:.1f}% - {status}")
+**Single Point of Truth**: All pipeline metadata lives in `pipeline_config.py`. Changes propagate automatically to CLI and Streamlit interfaces.
 
-runner = PipelineRunner(base_dir=".", verbose=True)
-result = runner.run_pipeline(
-    input_file="input.xlsx",
-    progress_callback=progress_callback
-)
+```
+pipeline_config.py          # Step definitions, metadata, dependencies
+├── StepMetadata           # Dataclass for step configuration
+├── PipelineConfig         # Central configuration manager
+└── PipelineConstants      # System-wide constants
+
+pipeline_runner.py         # Unified execution engine
+├── PipelineRunner         # Orchestrates step execution
+├── ProgressTracker        # Progress reporting for CLI/web
+└── PipelineExecutionResult # Result wrapper
 ```
 
-### 🔄 **Automatic Synchronization**
+**Key Design**: Each step can be executed via:
+1. CLI script directly (`python stepX_*.py`)
+2. Pipeline runner (`PipelineRunner.run_pipeline()`)
+3. Streamlit interface (`app.py`)
 
-**Before (Manual Maintenance)**:
-- Update step names in `app.py` hardcoded list ❌
-- Update CLI help text in each step file ❌ 
-- Manually sync descriptions between interfaces ❌
-- Risk of inconsistency between CLI and Web ❌
+All three methods use the same underlying step classes.
 
-**After (Centralized Configuration)**:
-- Update step metadata in `pipeline_config.py` ONCE ✅
-- CLI and Streamlit automatically sync ✅
-- Consistent naming and descriptions ✅
-- Single source of truth for all interfaces ✅
+### Validation Layer
 
-### 🚀 **Benefits Achieved**
+**Pre-flight validation prevents pipeline failures**
 
-1. **🎯 Single Source of Truth**: All pipeline metadata in `pipeline_config.py`
-2. **🔄 Automatic Updates**: Changes propagate to both CLI and web interface
-3. **🛠️ Easier Maintenance**: Add/modify/remove steps in one location
-4. **📊 Consistent Experience**: Same step names, descriptions across all interfaces
-5. **🧪 Better Testing**: Centralized validation of step dependencies
-6. **📈 Future-Proof**: Easy to add new execution modes (API, desktop app, etc.)
+```
+validation_utils.py
+├── ValidationError        # Structured exception with severity/category
+├── FileValidator          # Excel file validation
+├── HeaderDetector         # Fuzzy header matching
+└── ErrorHandler           # User-friendly error messages
 
-### 🔧 **Making Changes to Pipeline**
+pipeline_validator.py      # Comprehensive pre-validation
+└── PipelineValidator     # Multi-stage validation workflow
 
-#### Adding a New Step (Example: Step 9)
+validate_my_file.py        # User-facing validation script
+```
+
+### Processing Pipeline
+
+**8 sequential steps with dependency management:**
+
+```
+Step 1: ExcelUnmerger          (step1_unmerge_standalone.py)
+  Input: Raw Excel with merged cells
+  Output: Unmerged Excel
+
+Step 2: HeaderProcessor        (step2_header_processing.py)
+  Input: Step 1 output
+  Output: Processed headers (3-case logic)
+  Critical: Finds "General Type/Sub-Type in Connect" header
+
+Step 3: TemplateCreator        (step3_template_creation.py)
+  Input: Step 2 output
+  Output: 17-column structured template
+
+Step 4: ArticleFiller          (step4_article_filling.py)
+  Input: Original Excel + Step 3 template
+  Output: Template with article info (R+ columns)
+  Critical: Dynamic detection of "Article Name"/"Article No." headers
+
+Step 5: DataTransformer        (step5_data_transformation.py)
+  Input: Step 2 + Step 4 outputs
+  Output: Transformed data (Step 2 → Step 4 structure)
+
+Step 6: SDProcessor            (step6_sd_processing.py)
+  Input: Step 2 + Step 5 outputs
+  Output: SD processed data with de-duplication
+  Critical: H→P column mapping, multi-line parsing
+
+Step 7: FinishedProductProcessor (step7_finished_product.py)
+  Input: Original Excel + Step 6 output
+  Output: Article-matched products
+  Features: Fuzzy matching, "All items" logic
+
+Step 8: DocumentProcessor      (step8_document_processing.py)
+  Input: Original Excel + Step 7 output
+  Output: FINAL processed file
+  Features: Requirement source extraction, document validation
+```
+
+**Step Dependencies:**
+- Step 1: No dependencies
+- Step 2: Requires Step 1
+- Step 3: Requires Step 2
+- Step 4: Requires Step 3 + original input
+- Step 5: Requires Step 2 + Step 4
+- Step 6: Requires Step 2 + Step 5
+- Step 7: Requires Step 6 + original input
+- Step 8: Requires Step 7 + original input
+
+### Data Flow Pattern
+
+```
+Original Input (merged cells)
+    ↓
+[Step 1] → output-X-Step1.xlsx (unmerged)
+    ↓
+[Step 2] → output-X-Step2.xlsx (headers processed)
+    ↓
+[Step 3] → output-X-Step3.xlsx (template created)
+    ↓
+[Step 4] → output-X-Step4.xlsx (articles filled)
+    ← Original Input
+    ↓
+[Step 5] → output-X-Step5.xlsx (data transformed)
+    ← Step 2 output
+    ↓
+[Step 6] → output-X-Step6.xlsx (SD processed)
+    ← Step 2 output
+    ↓
+[Step 7] → output-X-Step7.xlsx (products matched)
+    ← Original Input
+    ↓
+[Step 8] → output-X-Step8.xlsx ✅ FINAL
+    ← Original Input
+```
+
+## Critical Implementation Rules
+
+### NEVER Do These:
+- **NEVER** hardcode column positions (use `HeaderDetector.find_*` methods)
+- **NEVER** assume fixed file structure (use fuzzy matching)
+- **NEVER** skip pre-validation (run `validate_my_file.py` or `validate_before_pipeline()`)
+- **NEVER** ignore ValidationError exceptions (they contain actionable messages)
+
+### ALWAYS Do These:
+- **ALWAYS** use dynamic header detection via `HeaderDetector`
+- **ALWAYS** validate inputs before processing
+- **ALWAYS** preserve data at every step (no information loss)
+- **ALWAYS** use `ValidationError` with helpful suggestions
+- **ALWAYS** test with real-world files from `data/input/`
+- **ALWAYS** update `pipeline_config.py` when adding/modifying steps
+
+## Adding New Pipeline Steps
+
+**Example: Adding Step 9**
+
+1. **Define metadata in `pipeline_config.py`:**
 ```python
-# 1. Add to pipeline_config.py
 StepMetadata(
     step_number=9,
-    name="optimize_output",
-    display_name="Optimizing final output", 
-    description="Apply final optimizations and quality checks",
-    class_name="OutputOptimizer",
-    module_name="step9_output_optimization",
-    depends_on=[8],
-    cli_script="step9_output_optimization.py",
+    name="your_step_name",
+    display_name="Processing your feature",
+    description="What this step does",
+    class_name="YourProcessor",
+    module_name="step9_your_feature",
+    requires_original_input=False,  # or True
+    depends_on=[8],  # Which steps must run first
+    cli_script="step9_your_feature.py",
     estimated_duration_seconds=5
 )
+```
 
-# 2. Create step9_output_optimization.py with standard interface
-class OutputOptimizer:
+2. **Create `step9_your_feature.py` with standard interface:**
+```python
+class YourProcessor:
+    def __init__(self, base_dir: str = "."):
+        self.base_dir = Path(base_dir)
+
     @classmethod
     def get_metadata(cls):
         return PipelineConfig.get_step(9)
-    
-    def optimize_output(self, input_file, output_file=None):
-        # Implementation here
-        pass
 
-# 3. Done! CLI and Streamlit automatically include Step 9
-```
-
-#### Modifying Step Names/Descriptions
-```python
-# Edit pipeline_config.py - changes apply everywhere
-StepMetadata(
-    step_number=1,
-    display_name="Unmerging merged cells",  # ← Changed here
-    description="New description here",      # ← Changed here
-    # ... rest unchanged
-)
-# Streamlit and CLI automatically reflect changes
-```
-
-### 📋 **Migration Completed**
-
-| Component | Status | Changes Made |
-|-----------|--------|--------------|
-| `pipeline_config.py` | ✅ **NEW** | Central step definitions and metadata |
-| `pipeline_runner.py` | ✅ **NEW** | Unified execution engine |
-| `app.py` | ✅ **UPDATED** | Uses centralized pipeline runner |
-| `step1-8.py` | ✅ **UPDATED** | Added metadata methods |
-| CLI compatibility | ✅ **MAINTAINED** | Full backward compatibility |
-| Documentation | ✅ **UPDATED** | Reflects centralized approach |
-
----
-
-# 👨‍💻 Developer Guide
-
-## 🏗️ Architecture Overview
-
-### **Validation Layer**
-```python
-validation_utils.py       # Core validation classes & utilities
-├── ValidationError      # Structured error handling
-├── FileValidator       # Excel file validation  
-├── HeaderDetector      # Dynamic header detection
-└── ErrorHandler        # User-friendly error messages
-
-pipeline_validator.py    # Comprehensive pre-flight validation
-└── PipelineValidator   # Multi-stage validation workflow
-```
-
-### **Processing Layer**
-```
-step1_unmerge_standalone.py    → ExcelUnmerger
-step2_header_processing.py     → HeaderProcessor  
-step3_template_creation.py     → TemplateCreator
-step4_article_filling.py       → ArticleFiller
-step5_data_transformation.py   → DataTransformer
-step6_sd_processing.py         → SDProcessor
-step7_finished_product.py      → FinishedProductProcessor
-step8_document_processing.py   → DocumentProcessor
-```
-
-### **User Interface Layer**
-```
-validate_my_file.py           # User-friendly validation script
-INPUT_REQUIREMENTS.md         # Detailed requirements
-QUICK_CHECKLIST.md           # Quick reference
-EMAIL_TEMPLATE.md            # Communication template
-```
-
-## 🔧 Adding New Features
-
-### **Adding New Validation Rules**
-1. **Edit `validation_utils.py`**:
-```python
-class FileValidator:
-    @classmethod
-    def validate_new_requirement(cls, file_path: Path) -> bool:
-        # Your validation logic here
-        pass
-```
-
-2. **Update `pipeline_validator.py`**:
-```python
-def _validate_step_requirements(self, input_path: Path):
-    # Add your new validation call
-    if not FileValidator.validate_new_requirement(input_path):
-        raise ValidationError("Your error message")
-```
-
-### **Adding New Processing Step**
-1. **Create `step9_your_feature.py`**:
-```python
-class YourProcessor:
     def process_file(self, input_file, output_file=None):
-        # Pre-flight validation
-        if not validate_before_pipeline(input_file, verbose=True):
-            raise ValidationError("Validation failed")
-        
-        # Your processing logic
+        # Validate input
+        input_path = validate_pipeline_input(input_file, "Step 9")
+
+        # Process data
         # ...
-        
-        return str(output_file)
+
+        # Return output path
+        return str(output_path)
 ```
 
-2. **Update CLAUDE.md** với step mới
-3. **Add to documentation** và test files
+3. **Update `pipeline_runner.py` execution logic:**
+Add handling in `_execute_step()` method for step 9.
 
-### **Modifying Header Detection**
-Edit `validation_utils.py`:
-```python
-class HeaderDetector:
-    @classmethod
-    def find_your_header(cls, worksheet) -> Optional[Tuple[int, int, str]]:
-        patterns = ["Your Header Pattern", "Alternative Pattern"]
-        return cls.find_header_fuzzy(worksheet, patterns)
-```
+4. **Changes automatically propagate to:**
+- CLI help text
+- Streamlit progress display
+- Dependency validation
+- Progress estimation
 
-## 📦 Dependencies
+## Key Headers to Detect
 
+The pipeline expects these headers in input files:
+
+1. **"General Type/Sub-Type in Connect"** (Step 2)
+   - Variants: "General Type of Material in Connect"
+   - Search: First 50 rows
+   - Method: `HeaderDetector.find_general_type_header()`
+
+2. **"Article Name" / "Article No."** (Step 4)
+   - Search: First 20 rows, above "General Type" header
+   - Method: `HeaderDetector.find_article_headers()`
+   - Must find both in same row
+
+## Testing
+
+Tested files located in `data/input/`:
+- `Test1.xlsx` - Complete test case with all features
+- `input-1.xlsx` - Single article, basic structure
+- `input-4.xlsx` - Multiple articles
+- `input-5.xlsx` - DRÖNA case study
+- `input-6.xlsx` - Different column positions
+- `Drona.xlsx` - Real-world example
+- `Skubb.xlsx` - Multiple articles (6 articles)
+- `frakta.xlsx` - SPARKA series (5 articles)
+
+Test any changes against multiple files to ensure adaptive logic works.
+
+## Troubleshooting Common Issues
+
+**Input Validation Failures:**
+- `"General Type header not found"` → Check header exists in first 50 rows
+- File not found → Verify path and permissions
+- Invalid Excel → Check file format (.xlsx, .xls, .xlsm)
+
+**Step-Specific Issues:**
+- **Step 1**: Merged cell detection → check Excel structure
+- **Step 2**: Header processing → verify "General Type/Sub-Type in Connect" exists
+- **Step 4**: Article extraction → check "Article Name"/"Article No." above "General Type"
+- **Step 6**: Over-aggressive dedup → check H→P mapping logic
+- **Step 7**: Article matching fails → verify article definitions and column P
+- **Step 8**: Pattern extraction errors → check requirement source formatting
+
+**Debug Commands:**
 ```bash
-pip install openpyxl  # Excel file processing
+# Verbose validation
+python validate_my_file.py "file.xlsx" -v
+python pipeline_validator.py "file.xlsx" -v
+
+# Verbose step execution
+python step1_unmerge_standalone.py input.xlsx -v
 ```
 
-## 📋 Code Principles
+## File Naming Convention
 
-### **🚫 DON'Ts**
-- **NEVER** hardcode column positions (always use dynamic detection)
-- **NEVER** assume fixed file structure (use adaptive logic)
-- **NEVER** ignore errors (always handle gracefully)
-- **NEVER** skip validation (pre-flight check everything)
+Pipeline generates standardized output names:
+```
+Input:  data/input/MyFile.xlsx
+Step 1: data/output/MyFile-Step1.xlsx
+Step 2: data/output/MyFile-Step2.xlsx
+...
+Step 8: data/output/MyFile-Step8.xlsx (FINAL)
+```
 
-### **✅ DOs**
-- **ALWAYS** use dynamic header detection  
-- **PREFER** adaptive logic over fixed patterns
-- **ENSURE** data preservation at every step
-- **VALIDATE** inputs before processing
-- **PROVIDE** actionable error messages
-- **TEST** with real-world files
-- **DOCUMENT** logic changes in CLAUDE.md
+## Version History
 
-### **🔄 Update Workflow**
-1. **Modify code** với new feature/fix
-2. **Test thoroughly** với existing test files
-3. **Update CLAUDE.md** với logic changes
-4. **Update documentation** nếu cần (INPUT_REQUIREMENTS.md, etc.)
-5. **Commit changes** với clear message
-6. **Update version** trong requirements.txt nếu cần
+- **v3.0.0** (2026-01-04): Centralized configuration system, single point of truth
+- **v2.x**: Complete 8-step pipeline with all features
+- **v1.x**: Initial implementation
 
----
+## Documentation Files
 
-**📝 Last Updated**: 2026-01-04  
-**🔧 Version**: 3.0.0 (Centralized configuration with single point of truth)  
-**👨‍💻 Maintainer**: Check git log for contributors
+- `CLAUDE.md` - This file (developer guide)
+- `README.md` - User-facing documentation
+- `INPUT_REQUIREMENTS.md` - Detailed input file requirements
+- `QUICK_CHECKLIST.md` - 5-minute validation checklist
+- `EMAIL_TEMPLATE.md` - User communication template
+- `DEPLOYMENT_GUIDE.md` - Streamlit deployment instructions

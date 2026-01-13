@@ -6,14 +6,16 @@ SEDO TSS Converter Pipeline Step 6/6
 LOGIC:
 - Extract SD data from Step 2 "Requirements" row and below
 - Parse multi-line G column values (SD specifications) and expand into separate rows
-- Map SD data: A→B, B→C, E→F, F→D, G-lines→Q with "TR" document type
+- Map SD data: A→B, B→C, E→F, F→D, G-lines→Q with SD indicator and spec codes
+- Extract SD indicator: Column H = "SD" if specification contains SD keyword
+- Extract spec codes: Column I = MAT-XXXX, IMAT-XXXX, IOS-MAT-XXXX, PRG-XXX patterns
 - Append SD rows to Step 5 output while preserving existing data
 - Perform comprehensive de-duplication using ALL columns comparison
 - Trim trailing spaces to avoid false duplicates
 
-PIPELINE POSITION: Final step - completes data integration with SD processing
+PIPELINE POSITION: Sixth step - completes SD data integration with enhanced extraction
 INPUT: Header-processed data (output-X-Step2.xlsx) + Populated template (output-X-Step5.xlsx)
-OUTPUT: Complete processed file (output-X-Step6.xlsx) - FINAL RESULT
+OUTPUT: Complete processed file (output-X-Step6.xlsx)
 """
 
 import openpyxl
@@ -35,12 +37,13 @@ logger = logging.getLogger(__name__)
 
 class SDProcessor:
     """
-    SD Processor for Step 6 - Final Integration
-    
+    SD Processor for Step 6 - Final Integration with Enhanced Extraction
+
     Comprehensive SD data processing and integration:
     - Locates "Requirements" section in Step 2 for SD data extraction
     - Validates and filters SD values (excludes "N/A", "Không")
     - Parses multi-line G column specifications into individual entries
+    - Extracts SD indicator and specification codes from each line
     - Maps SD data to proper output columns with consistent formatting
     - Appends to existing Step 5 data without overwriting
     - Performs intelligent de-duplication across ALL columns
@@ -220,8 +223,18 @@ class SDProcessor:
                 output_ws.cell(current_output_row, 16, h_value)  # P (column 16)
                 # G19 lines → Q
                 output_ws.cell(current_output_row, 17, g_line.strip())  # Q (column 17)
-                
-                logger.debug(f"Added output row {current_output_row}: F={f_value}, P={h_value}, Q='{g_line.strip()}'")
+
+                # NEW: Extract SD indicator → H (column 8)
+                sd_indicator = self._extract_sd_indicator(g_line)
+                if sd_indicator:
+                    output_ws.cell(current_output_row, 8, sd_indicator)  # H (column 8)
+
+                # NEW: Extract spec codes → I (column 9)
+                spec_codes = self._extract_spec_codes(g_line)
+                if spec_codes:
+                    output_ws.cell(current_output_row, 9, spec_codes)  # I (column 9)
+
+                logger.debug(f"Added output row {current_output_row}: F={f_value}, P={h_value}, Q='{g_line.strip()}', H_SD='{sd_indicator}', I_codes='{spec_codes}'")
                 current_output_row += 1
                 rows_added += 1
         
@@ -274,7 +287,91 @@ class SDProcessor:
             return [value_str]
         
         return lines
-    
+
+    def _extract_sd_indicator(self, text: str) -> str:
+        """
+        Extract SD indicator from specification text.
+
+        Returns "SD" if text contains SD keyword with appropriate separators,
+        otherwise returns empty string.
+
+        Args:
+            text: Input text from G column specification (SD data line)
+
+        Returns:
+            "SD" or "" (empty string)
+
+        Examples:
+            "1/SD_IMAT-0010 & MAT-0254_textile" → "SD"
+            "SD: 006068827" → "SD"
+            "SD PRG10: 006177515" → "SD"
+            "3/IOS_MAT-0167_GRS recycler" → ""
+            "GRS SUZHOU: 005917160" → ""
+        """
+        if not text:
+            return ""
+
+        # Pattern: SD preceded/followed by separator (underscore, colon, space, slash)
+        # or at start/end of string
+        # Avoids false positives like "CLOSED" or "BASED"
+        pattern = r'(?:^|[/_\s])SD(?:[_:\s/]|$)'
+
+        if re.search(pattern, text, re.IGNORECASE):
+            return "SD"
+        return ""
+
+    def _extract_spec_codes(self, text: str) -> str:
+        """
+        Extract specification codes from text.
+
+        Extracts codes matching patterns:
+        - MAT-XXXX, IMAT-XXXX, PRG-XXXX (with dash separator)
+        - IOS-MAT-XXXX, IOS-PRG-XXXX (with IOS prefix)
+        - MAT0XXX, PRG10 (without dash separator)
+
+        Multiple codes are returned comma-separated with duplicates removed.
+
+        Args:
+            text: Input text from G column specification (SD data line)
+
+        Returns:
+            Comma-separated string of spec codes, or empty string if none found
+
+        Examples:
+            "1/SD_IMAT-0010 & MAT-0254_textile" → "IMAT-0010, MAT-0254"
+            "2/SD_IOS-MAT-0250_JIANGSU REBORN" → "IOS-MAT-0250"
+            "SD PRG10: 006177515" → "PRG10"
+            "SD MAT0165: 005921346" → "MAT0165"
+            "IOS-PRG-0251-1" → "IOS-PRG-0251-1"
+            "SD: 006068827" → ""
+            "GRS SUZHOU: 005917160" → ""
+        """
+        if not text:
+            return ""
+
+        # Pattern breakdown:
+        # (?:IOS-)? - optional IOS- prefix (non-capturing group)
+        # (?:IMAT|MAT|PRG) - spec type: IMAT, MAT, or PRG (non-capturing group)
+        # [-\s]? - optional dash or space separator
+        # [0-9]{2,4} - 2-4 digit code
+        # (?:-[0-9]+)? - optional numeric suffix like -1, -16, -251 (non-capturing group)
+        pattern = r'(?:IOS-)?(?:IMAT|MAT|PRG)[-\s]?[0-9]{2,4}(?:-[0-9]+)?'
+
+        matches = re.findall(pattern, text, re.IGNORECASE)
+
+        if matches:
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_matches = []
+            for match in matches:
+                match_upper = match.upper()
+                if match_upper not in seen:
+                    seen.add(match_upper)
+                    unique_matches.append(match)
+
+            return ', '.join(unique_matches)
+        return ""
+
     def _copy_row_formatting(self, worksheet, source_row: int, target_row: int):
         """Copy formatting from source row to target row for columns A-Q"""
         for col in range(1, 18):  # Columns A-Q

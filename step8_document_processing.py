@@ -157,11 +157,12 @@ class DocumentProcessor:
     def _fill_document_specs(self, worksheet) -> int:
         """
         Fill document type (column H) and requirement source (column I) based on column Q
-        
+
         Logic:
         - Document Type: First word (no spaces) from column Q → column H
+          * SKIP if Q starts with "N/" pattern (e.g., "1/", "2/", "3/")
         - Requirement Source: Extract IOS/MAT patterns from column Q → column I
-        
+
         Returns:
             Number of rows processed
         """
@@ -183,9 +184,11 @@ class DocumentProcessor:
             
             # Parse document information
             doc_type, req_source = self._parse_document_info(q_text)
-            
+
             # Fill document type in column H (column 8)
-            if doc_type:
+            # IMPORTANT: Do NOT overwrite "SD" values from Step 6
+            existing_h = worksheet.cell(row, 8).value
+            if doc_type and existing_h != "SD":  # Only fill if NOT an SD row
                 worksheet.cell(row, 8, doc_type)
                 logger.debug(f"Row {row}: Document type '{doc_type}' → H{row}")
             
@@ -201,21 +204,27 @@ class DocumentProcessor:
     def _parse_document_info(self, q_text: str) -> Tuple[str, str]:
         """
         Parse document type and requirement source from column Q text
-        
+
         Args:
             q_text: Text from column Q
-            
+
         Returns:
             (document_type, requirement_source) tuple
         """
-        # Extract document type (first word without spaces)
-        words = q_text.split()
-        doc_type = words[0] if words else ""
-        
+        # Check if Q text starts with "N/" pattern (number followed by slash)
+        # If so, skip document type extraction (leave column H empty)
+        # Examples: "1/", "2/", "3/" → don't fill column H
+        if re.match(r'^\d+/', q_text.strip()):
+            doc_type = ""  # Don't fill column H for "1/", "2/", "3/" patterns
+        else:
+            # Extract document type (first word without spaces)
+            words = q_text.split()
+            doc_type = words[0] if words else ""
+
         # Extract requirement sources containing IOS or MAT
         req_sources = self._extract_requirement_sources(q_text)
         req_source = " & ".join(req_sources) if req_sources else ""
-        
+
         return doc_type, req_source
     
     def _extract_requirement_sources(self, text: str) -> List[str]:
